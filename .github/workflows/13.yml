@@ -1,4 +1,4 @@
-name: Build OnePlus 13 # 构建一加内核
+name: Build OnePlus Kernel # 构建一加内核
 
 on:
   workflow_dispatch:
@@ -124,28 +124,23 @@ jobs:
           cd kernel_workspace
           git clone https://github.com/ShirkNeko/SukiSU_patch.git
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ env.ANDROID_VERSION }}-${{ env.KERNEL_VERSION }}
-          cp susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ env.ANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch kernel_platform/common/
-          if [ -d "susfs4ksu/kernel_patches/fs" ] && [ -d "kernel_platform/common/fs" ]; then
-            find susfs4ksu/kernel_patches/fs/ -type f -exec cp {} kernel_platform/common/fs/ \; || { echo "复制 SUSFS 文件系统补丁失败"; exit 1; }
-          else
-            echo "警告：SUSFS 文件系统补丁源或目标目录不存在，请检查。"
-            exit 1;
-          fi
-          if [ -d "susfs4ksu/kernel_patches/include/linux" ] && [ -d "kernel_platform/common/include/linux" ]; then
-            find susfs4ksu/kernel_patches/include/linux/ -type f -exec cp {} kernel_platform/common/include/linux/ \; || { echo "复制 SUSFS Linux 头文件补丁失败"; exit 1; }
-          else
-            echo "警告：SUSFS Linux 头文件补丁源或目标目录不存在，请检查。"
-            exit 1;
-          fi
+
+          cd kernel_platform/common
+          # Copy SUSFS patches
+          cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ env.ANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch ./
+          cp ../../susfs4ksu/kernel_patches/fs/* ./fs/
+          cp ../../susfs4ksu/kernel_patches/include/linux/* ./include/linux/
+
           echo "正在给内核打 susfs 补丁..."
           if [[ "${{ env.KERNEL_VERSION }}" == "6.6" ]]; then
-            sed -i '/#include <trace\/hooks\/blk.h>/a #include <trace/hooks/fs.h>' kernel_platform/common/fs/namespace.c
+            sed -i '/#include <trace\/hooks\/blk.h>/a #include <trace/hooks/fs.h>' ./fs/namespace.c
           fi
-          patch -p1 -d kernel_platform/common/ < kernel_platform/common/50_add_susfs_in_gki-${{ env.ANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch || { echo "应用 susfs 补丁失败"; exit 1; }
+          patch -p1 < 50_add_susfs_in_gki-${{ env.ANDROID_VERSION }}-${{ env.KERNEL_VERSION }}.patch || { echo "应用 susfs 补丁失败"; exit 1; }
           echo "susfs 补丁应用完成"
-          cp SukiSU_patch/69_hide_stuff.patch kernel_platform/common/
+
+          cp ../../SukiSU_patch/69_hide_stuff.patch ./
           echo "正在打隐藏应用补丁..."
-          patch -p1 -F 3 -d kernel_platform/common/ < kernel_platform/common/69_hide_stuff.patch || { echo "应用隐藏应用补丁失败"; exit 1; }
+          patch -p1 -F 3 < 69_hide_stuff.patch || { echo "应用隐藏应用补丁失败"; exit 1; }
           echo "隐藏应用补丁应用完成"
 
       - name: Apply New Hooks patches # 应用新的钩子补丁
@@ -157,9 +152,10 @@ jobs:
           else
             echo "SukiSU_patch 目录已存在，跳过克隆。"
           fi
-          cp SukiSU_patch/hooks/new_hooks.patch kernel_platform/common/
+          cd kernel_platform/common
+          cp ../../SukiSU_patch/hooks/new_hooks.patch ./
           echo "正在打 vfs 补丁..."
-          patch -p1 -F 3 -d kernel_platform/common/ < kernel_platform/common/new_hooks.patch || { echo "应用 vfs 补丁失败"; exit 1; }
+          patch -p1 -F 3 < new_hooks.patch || { echo "应用 vfs 补丁失败"; exit 1; }
           echo "vfs 补丁应用完成"
 
       - name: Configure kernel # 配置内核
