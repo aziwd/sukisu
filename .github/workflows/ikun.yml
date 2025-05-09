@@ -1,4 +1,4 @@
-name: ace5pro整合
+name: ace5pro
 on:
   workflow_dispatch:
     inputs:
